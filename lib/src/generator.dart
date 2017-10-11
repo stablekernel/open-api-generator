@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:open_api/open_api.dart';
 import 'generators/dart.dart';
 
@@ -13,4 +15,6 @@ abstract class Generator {
   APIDocument document;
 
   Map<String, String> get fileSources;
+
+  void writeToDirectory(Directory dir);
 }

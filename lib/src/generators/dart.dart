@@ -1,5 +1,9 @@
-import '../generator.dart';
+import 'dart:io';
+
 import 'package:open_api/open_api.dart';
+import 'package:open_api/src/property.dart';
+import 'dart_model.dart';
+import '../generator.dart';
 
 /*
 class UserAgentClient extends http.BaseClient {
@@ -18,202 +22,95 @@ class UserAgentClient extends http.BaseClient {
 typedef String _DefinitionNamer(String longName);
 
 class DartGenerator implements Generator {
-  DartGenerator(this.document, this.namer);
+  DartGenerator(this.document, this.namer, {this.apiName});
 
+  String apiName;
   APIDocument document;
   _DefinitionNamer namer;
 
-  Map<String, String> get fileSources {
-    // generate all base models
-    var definitions = document.definitions.keys
-        .map((name) {
-      return generateDefinition(name, document.definitions[name]);
-    })
-        .where((def) => def != null)
-        .toList();
+  void writeToDirectory(Directory dir) {
+    dir.createSync();
 
-//    print("${definitions}");
+    var pubspec = new File.fromUri(dir.uri.resolve("pubspec.yaml"));
+    pubspec.writeAsStringSync("""
+name: ${pathify(apiName ?? document.info.title)}
+description: ${document.info.description ?? "An API"}
+version: 0.0.1
 
-    var operations = document.paths.keys.map((path) {
-      return generatePathOperations(path, document.paths[path]);
-    }).toList();
+environment:
+  sdk: '>=1.20.1 <2.0.0'    
+    """);
 
-    print("$operations");
+    var libDir = new Directory.fromUri(dir.uri.resolve("lib/"));
+    libDir.createSync();
 
-    return {};
-  }
-
-  String generatePathOperations(String path, APIPath object) {
-    StringBuffer buf = new StringBuffer();
-
-    object.operations.forEach((httpMethod, operation) {
-      var successResponseKey = operation.responses.keys.firstWhere((k) => k.startsWith("2"), orElse: () => null);
-      var returnType = typeName(operation.responses[successResponseKey]?.schema);
-
-      var queryParameters = operation.parameters.where((p) => p.location == APIParameterLocation.query);
-      // url params for get, delete and head
-      var url = "\$scheme://\$host$path";
-
-      if (httpMethod.toLowerCase() == "get" || httpMethod.toLowerCase() == "delete" || httpMethod.toLowerCase() == "head") {
-
+    var modelDir = libDir.uri.resolve("definitions/");
+    var defs = document.definitions.keys.map((defName) => new DartModel(defName, document.definitions[defName], namer: namer));
+    defs.forEach((dm) {
+      var contents = dm.contents;
+      if (contents == null) {
+        return;
       }
 
-      buf.writeln("Future<Response<$returnType>> ${operation.id}() async {");
-      buf.writeln("  try {");
-      buf.writeln("    var resp = await $execute;");
-      buf.writeln("    if (resp.statusCode == $successResponseKey) {");
-      buf.writeln("      var object = $decode;");
-      buf.writeln("      return new Response<$returnType>(resp.statusCode, resp.headers, object);");
-      buf.writeln("    } else {");
-      buf.writeln("      return ");
-      buf.writeln("    }");
-      buf.writeln("  }");
-      buf.writeln("}");
+      var uri = modelDir.resolveUri(dm.uri);
+      var containingDirectoryPath = FileSystemEntity.parentOf(uri.path);
+      var dir = new Directory(containingDirectoryPath);
+      dir.createSync(recursive: true);
+
+      var f = new File.fromUri(uri);
+      f.writeAsStringSync(contents);
     });
 
-    return buf.toString();
   }
 
-  String generateDefinition(String name, APISchemaObject object) {
-    if (object.properties != null) {
-      StringBuffer buf = new StringBuffer();
+  Map<String, String> get fileSources {
+    var output = <String, String>{};
 
-      var className = namer(name);
+//    var operations = document.paths.keys.map((path) {
+//      return generatePathOperations(path, document.paths[path]);
+//    }).toList();
+//
+//    print("$operations");
 
-      buf.writeln("class $className {");
-
-      // If items is a ref, then it has a name. if it is an array, then nest one deeper.
-      // if it has props/addlProps, then it is a map. Otherwise, it is its type
-
-      // todo: make all required params final, require them as args to this constructor
-      // Type()
-      buf.writeln("  $className();");
-      buf.writeln("");
-
-      // Type.fromMap(Map values)
-      buf.writeln("  $className.fromMap(Map<String, dynamic> values) {");
-      object.properties.forEach((propName, nextObject) {
-        decodeString(buf, propName, nextObject);
-      });
-      buf.writeln("  }");
-      buf.writeln("");
-
-      // Property definitions;
-      object.properties.forEach((propName, nextObject) {
-        buf.writeln("  ${typeName(nextObject)} $propName;");
-      });
-      buf.writeln("");
-
-      // Map<String, dynamic> asMap()
-      buf.writeln("  Map<String, dynamic> asMap() {");
-      buf.writeln("    var output = <String, dynamic>{};");
-      object.properties.forEach((propName, nextObject) {
-        encodeString(buf, propName, nextObject);
-      });
-      buf.writeln("    return output;");
-      buf.writeln("  }");
-
-      buf.writeln("}");
-
-      return buf.toString();
-    }
-
-    return null;
+    return output;
   }
 
-  String encodeString(StringBuffer buffer, String propName, APISchemaObject object) {
-    switch (object.representation) {
-      case APISchemaRepresentation.unknownOrInvalid:
-        break;
-
-      case APISchemaRepresentation.object:
-        buffer.writeln("    values['$propName'] = $propName;");
-        break;
-
-      case APISchemaRepresentation.primitive:
-        buffer.writeln("    values['$propName'] = $propName;");
-        break;
-
-      case APISchemaRepresentation.structure:
-        buffer.writeln("    output['$propName'] = $propName?.asMap();");
-        break;
-
-      case APISchemaRepresentation.array:
-        if (object.items?.representation == APISchemaRepresentation.structure) {
-          // Then it is a reference to some other type.
-          var listFromMap = "$propName";
-          var constructor = "m.asMap()";
-          buffer.writeln("    output['$propName'] = $listFromMap?.map((m) => $constructor)?.toList();");
-        } else {
-          // Otherwise, it is a list of primitives.
-          buffer.writeln("    values['$propName'] = $propName;");
-        }
-        break;
-    }
-
-    return "";
+  String pathify(String name) {
+    return name.toLowerCase().replaceAll("-", "_");
+  }
+  
+  String fileName(String name) {
+    return pathify(name) + ".dart";
   }
 
-  String decodeString(StringBuffer buffer, String propName, APISchemaObject object) {
-    switch (object.representation) {
-      case APISchemaRepresentation.unknownOrInvalid:
-        break;
-
-      case APISchemaRepresentation.object:
-        buffer.writeln("    $propName = values['$propName'];");
-        break;
-
-      case APISchemaRepresentation.primitive:
-        buffer.writeln("    $propName = values['$propName'];");
-        break;
-
-      case APISchemaRepresentation.structure:
-        var type = typeName(object);
-        buffer.writeln("    $propName = new $type.fromMap(values['$propName']);");
-        break;
-
-      case APISchemaRepresentation.array:
-        if (object.items?.representation == APISchemaRepresentation.structure) {
-          var innerType = typeName(object.items);
-          var listFromMap = "(values['$propName'] as List<Map<String, dynamic>>)";
-          var constructor = "new $innerType.fromMap(m)";
-          buffer.writeln("    $propName = $listFromMap?.map((m) => $constructor)?.toList();");
-        } else {
-          // Otherwise, it is a list of primitives.
-          buffer.writeln("    $propName = values['$propName'];");
-        }
-        break;
-    }
-
-    return "";
-  }
-
-  String typeName(APISchemaObject object) {
-    if (object == null) {
-      return "dynamic";
-    }
-
-    switch (object.type) {
-      case APIType.string:
-        return "String";
-      case APIType.integer:
-        return "int";
-      case APIType.number:
-        return "num";
-      case APIType.boolean:
-        return "bool";
-      case APIType.array:
-        return "List<${typeName(object.items)}>";
-      case APIType.file:
-        return "dynamic";
-      case APIType.object:
-        return "Map<String, ${typeName(object.additionalProperties)}>";
-    }
-
-    if (object.referenceURI != null) {
-      return namer(object.referenceURI);
-    }
-
-    return "dynamic";
-  }
+//  String generatePathOperations(String path, APIPath object) {
+//    StringBuffer buf = new StringBuffer();
+//
+//    object.operations.forEach((httpMethod, operation) {
+//      var successResponseKey = operation.responses.keys.firstWhere((k) => k.startsWith("2"), orElse: () => null);
+//      var returnType = typeName(operation.responses[successResponseKey]?.schema);
+//
+//      var queryParameters = operation.parameters.where((p) => p.location == APIParameterLocation.query);
+//      // url params for get, delete and head
+//      var url = "\$scheme://\$host$path";
+//
+//      if (httpMethod.toLowerCase() == "get" ||
+//          httpMethod.toLowerCase() == "delete" ||
+//          httpMethod.toLowerCase() == "head") {}
+//
+//      buf.writeln("Future<Response<$returnType>> ${operation.id}() async {");
+//      buf.writeln("  try {");
+//      buf.writeln("    var resp = await $execute;");
+//      buf.writeln("    if (resp.statusCode == $successResponseKey) {");
+//      buf.writeln("      var object = $decode;");
+//      buf.writeln("      return new Response<$returnType>(resp.statusCode, resp.headers, object);");
+//      buf.writeln("    } else {");
+//      buf.writeln("      return ");
+//      buf.writeln("    }");
+//      buf.writeln("  }");
+//      buf.writeln("}");
+//    });
+//
+//    return buf.toString();
+//  }
 }
