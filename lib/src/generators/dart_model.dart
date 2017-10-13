@@ -37,26 +37,37 @@ class DartModel {
       importSet.forEach((e) {
         buf.writeln(e);
       });
+      buf.writeln("");
 
       var className = namer(name);
       buf.writeln("class $className {");
 
       // todo: make all required params final, require them as args to this constructor
       // Type()
-      buf.writeln("  $className();");
+      buf.write("  $className(");
+      buf.write("${object.required
+          ?.map((requiredProperty) => "this.${symbolicate(requiredProperty)}")
+          ?.join(", ") ?? ""}");
+      buf.writeln(");");
       buf.writeln("");
 
       // Type.fromMap(Map values)
-      buf.writeln("  $className.fromMap(Map<String, dynamic> values) {");
-      object.properties.forEach((propName, nextObject) {
-        decodeString(buf, propName, nextObject);
-      });
-      buf.writeln("  }");
+      buf.writeln("  $className.fromMap(Map<String, dynamic> values) :");
+      var initializers = object.properties.keys.map((k) {
+        return "    ${decodeString(k, object.properties[k])}";
+      }).where((s) => s != null).join(",\n");
+      buf.write(initializers);
+      buf.writeln(";");
       buf.writeln("");
 
       // Property definitions;
       object.properties.forEach((propName, nextObject) {
-        buf.writeln("  ${typeName(nextObject)} ${symbolicate(propName)};");
+        if (object.required?.contains(propName) ?? false) {
+          buf.write("  final ");
+        } else {
+          buf.write("  ");
+        }
+        buf.writeln("${typeName(nextObject)} ${symbolicate(propName)};");
       });
       buf.writeln("");
 
@@ -110,22 +121,22 @@ class DartModel {
     return "";
   }
 
-  String decodeString(StringBuffer buffer, String propName, APISchemaObject object) {
+  String decodeString(String propName, APISchemaObject object) {
     switch (object.representation) {
       case APISchemaRepresentation.unknownOrInvalid:
         break;
 
       case APISchemaRepresentation.object:
-        buffer.writeln("    ${symbolicate(propName)} = values[${symbolicateKey(propName)}];");
+        return "${symbolicate(propName)} = values[${symbolicateKey(propName)}]";
         break;
 
       case APISchemaRepresentation.primitive:
-        buffer.writeln("    ${symbolicate(propName)} = values[${symbolicateKey(propName)}];");
+        return "${symbolicate(propName)} = values[${symbolicateKey(propName)}]";
         break;
 
       case APISchemaRepresentation.structure:
         var type = typeName(object);
-        buffer.writeln("    ${symbolicate(propName)} = new $type.fromMap(values[${symbolicateKey(propName)}]);");
+        return "${symbolicate(propName)} = new $type.fromMap(values[${symbolicateKey(propName)}])";
         break;
 
       case APISchemaRepresentation.array:
@@ -133,15 +144,15 @@ class DartModel {
           var innerType = typeName(object.items);
           var listFromMap = "(values[${symbolicateKey(propName)}] as List<Map<String, dynamic>>)";
           var constructor = "new $innerType.fromMap(m)";
-          buffer.writeln("    ${symbolicate(propName)} = $listFromMap?.map((m) => $constructor)?.toList();");
+          return "${symbolicate(propName)} = $listFromMap?.map((m) => $constructor)?.toList()";
         } else {
           // Otherwise, it is a list of primitives.
-          buffer.writeln("    ${symbolicate(propName)} = values[${symbolicateKey(propName)}];");
+          return "${symbolicate(propName)} = values[${symbolicateKey(propName)}]";
         }
         break;
     }
 
-    return "";
+    return null;
   }
 
   String typeName(APISchemaObject object) {
