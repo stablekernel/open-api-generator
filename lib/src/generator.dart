@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:open_api/open_api.dart';
-import 'generators/dart.dart';
+import 'package:open_api_generator/src/generators/dart/generator.dart';
 
 abstract class Generator {
   factory Generator(String language, APIDocument document, {String definitionNamer(String longName)}) {
@@ -12,9 +12,7 @@ abstract class Generator {
     throw new Exception("Unsupported language '$language'");
   }
 
-  APIDocument document;
-
-  Map<String, String> get fileSources;
+  APIDocument get document;
 
   void writeToDirectory(Directory dir);
 }
