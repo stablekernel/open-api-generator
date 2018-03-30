@@ -1,7 +1,7 @@
 // Copyright (c) 2017, joeconway. All rights reserved. Use of this source code
 // is governed by a BSD-style license that can be found in the LICENSE file.
 
-import 'package:open_api/open_api.dart';
+import 'package:open_api/v2.dart';
 import 'package:open_api_generator/open_api_generator.dart';
 import 'package:test/test.dart';
 import 'dart:io';
@@ -18,13 +18,15 @@ void main() {
       // to this path, from this path: https://github.com/kubernetes/kubernetes/blob/master/api/openapi-spec/swagger.json.
       var file = new File("test/specs/kubernetes.json");
       var contents = file.readAsStringSync();
-      original = JSON.decode(contents);
+      original = json.decode(contents);
       doc = new APIDocument.fromJSON(contents);
     });
 
     test("ok", () {
       var gen = new Generator("dart", doc, definitionNamer: (s) => s.split(".").last);
-      print("${gen.fileSources}");
+      var directory = new Directory("build/kubernetes_api_test");
+      gen.writeToDirectory(directory);
+      expect(directory.existsSync(), true);
     });
   });
 }

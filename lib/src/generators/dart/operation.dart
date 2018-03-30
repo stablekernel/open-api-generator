@@ -1,5 +1,4 @@
-import 'package:open_api/open_api.dart';
-import 'package:open_api/src/property.dart';
+import 'package:open_api/v2.dart';
 import 'package:open_api_generator/src/generators/dart/util.dart';
 import 'type.dart';
 
@@ -149,6 +148,9 @@ class DartBuilder {
 
     return "";
   }
+
+  // todo: What is namer supposed to to?
+  String  namer(String r) => r;
 
   String toString({int depth: 0}) {
     var buf = new StringBuffer();

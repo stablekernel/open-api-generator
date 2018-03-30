@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:open_api/open_api.dart';
+import 'package:open_api/v2.dart';
 import 'package:open_api_generator/open_api_generator.dart';
 
 Future main(List<String> args) async {

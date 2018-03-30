@@ -9,3 +9,4 @@ test/specs/kubernetes.json
 doc/api/
 .idea/
 *.iml
+.dart_tool/
