@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:open_api/open_api.dart';
+import 'package:open_api/v2.dart';
 import 'package:open_api_generator/src/generators/dart/generator.dart';
 
 abstract class Generator {

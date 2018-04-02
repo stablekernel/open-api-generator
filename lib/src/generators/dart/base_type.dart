@@ -14,8 +14,8 @@ abstract class Codable {
 }
 
 class JSONCoder<T extends Codable> {
-  JSONCoder(String json, T inflate()) {
-    final deserialized = JSON.decode(json, reviver: (_, value) {
+  JSONCoder(String jsonString, T inflate()) {
+    final deserialized = json.decode(jsonString, reviver: (_, value) {
       if (value is Map) {
         return new Coder._(value);
       }
@@ -37,11 +37,11 @@ class JSONCoder<T extends Codable> {
   }
 
   static String encodeRootObject<T extends Codable>(T root) {
-    return JSON.encode(root.asMap());
+    return json.encode(root.asMap());
   }
 
   static String encodeObjects<T extends Codable>(List<T> objects) {
-    return JSON.encode(objects.map((obj) => obj.asMap()).toList());
+    return json.encode(objects.map((obj) => obj.asMap()).toList());
   }
 
   dynamic objectOrObjects;
