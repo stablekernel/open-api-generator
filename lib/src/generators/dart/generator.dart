@@ -77,7 +77,7 @@ description: ${document.info.description ?? "An API"}
 version: 0.0.1
 
 environment:
-  sdk: '>=1.20.1 <2.0.0'    
+  sdk: '>=2.0.0 <3.0.0'
 """);
   }
   
