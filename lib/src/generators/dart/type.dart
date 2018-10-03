@@ -1,7 +1,6 @@
 import 'package:open_api/v2.dart';
 import 'package:open_api/src/v2/property.dart';
 import 'package:open_api_generator/src/generators/dart/util.dart';
-import 'package:open_api/src/json_object.dart';
 
 typedef String _DefinitionNamer(String longName);
 
@@ -19,16 +18,16 @@ class DartType {
   Uri uri;
 
   List<String> get requiredImports {
-    return new Set.from(object.properties.values.map((so) {
+    return new Set<String>.of(object.properties.values.map((so) {
       if (so.referenceURI != null) {
-        var replaced = so.referenceURI.replaceAll("#/", "").replaceAll(".", "/");
-        return "package:$packageName/$replaced.dart";
+        var replaced = so.referenceURI.toString().replaceAll("#/", "").replaceAll(".", "/");
+        return "package:$packageName$replaced.dart";
       } else if (so.items?.referenceURI != null) {
-        var replaced = so.items.referenceURI.replaceAll("#/", "").replaceAll(".", "/");
-        return "package:$packageName/$replaced.dart";
+        var replaced = so.items.referenceURI.toString().replaceAll("#/", "").replaceAll(".", "/");
+        return "package:$packageName$replaced.dart";
       } else if (so.additionalProperties?.referenceURI != null) {
-        var replaced = so.additionalProperties.referenceURI.replaceAll("#/", "").replaceAll(".", "/");
-        return "package:$packageName/$replaced.dart";
+        var replaced = so.additionalProperties.referenceURI.toString().replaceAll("#/", "").replaceAll(".", "/");
+        return "package:$packageName$replaced.dart";
       }
 
       return null;
@@ -73,7 +72,7 @@ class DartType {
     // Property definitions
     final fields = object.properties.keys.map((propName) {
       final type = typeName(object.properties[propName]);
-      final isRequired = object.required?.contains(propName) ?? false;
+//      final isRequired = object.required?.contains(propName) ?? false;
       final fieldName = symbolicate(propName);
 
       return "  $type $fieldName";
@@ -194,7 +193,7 @@ class DartType {
     }
 
     if (object.referenceURI != null) {
-      return namer(object.referenceURI);
+      return namer(object.referenceURI.toString());
     }
 
     switch (object.type) {

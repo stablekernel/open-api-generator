@@ -143,7 +143,7 @@ class DartBuilder {
 
     var def = operation.responses[successResponseKeys.first];
     if (def.schema.referenceURI != null) {
-      return namer(def.schema.referenceURI);
+      return namer(def.schema.referenceURI.toString());
     }
 
     return "";
